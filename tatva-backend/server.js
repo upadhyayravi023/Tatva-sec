@@ -63,8 +63,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body Parsers
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Routes
 app.use("/api/auth", require("./routes/authRoutes"));
@@ -73,7 +73,12 @@ app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/announcements", require("./routes/announceRoutes"));
 app.use("/api/sports", require("./routes/sportRoutes"));
 
-// Health check
+// Health check — keep-alive ping for uptime monitors (e.g. UptimeRobot)
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", uptime: process.uptime() });
+});
+
+// Root
 app.get("/", (req, res) => {
   res.json({ message: "Campus Events API is running 🚀" });
 });

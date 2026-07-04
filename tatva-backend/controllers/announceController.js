@@ -35,7 +35,8 @@ const createAnnouncement = async (req, res) => {
 const getAllAnnouncements = async (req, res) => {
   try {
     const announcements = await Announcement.find()
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     res.json({ success: true, data: announcements });
   } catch (error) {
@@ -48,7 +49,7 @@ const getAllAnnouncements = async (req, res) => {
 // @access  Public
 const getAnnouncementById = async (req, res) => {
   try {
-    const announcement = await Announcement.findById(req.params.id);
+    const announcement = await Announcement.findById(req.params.id).lean();
 
     if (!announcement) {
       return res.status(404).json({ success: false, message: "Announcement not found" });

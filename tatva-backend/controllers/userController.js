@@ -5,10 +5,13 @@ const User = require("../models/User");
 // @access  Private
 const getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).populate(
-      "registeredEvents",
-      "event sport description startDate endDate imagePosters registrationUrl posterUrl tagline"
-    );
+    const user = await User.findById(req.user._id)
+      .select("-password -otp -otpExpire")
+      .populate(
+        "registeredEvents",
+        "event sport description startDate endDate imagePosters registrationUrl posterUrl tagline"
+      )
+      .lean();
     res.json({ success: true, data: user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -45,12 +48,10 @@ const updateProfile = async (req, res) => {
 // @access  Private/Admin
 const getAllUsers = async (req, res) => {
   try {
-    // const { page = 1, limit = 20 } = req.query;
-
     const users = await User.find()
+      .select("-password -otp -otpExpire")
       .sort({ createdAt: -1 })
-
-    const total = await User.countDocuments();
+      .lean();
 
     res.json({
       success: true,
@@ -67,7 +68,9 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .populate("registeredEvents", "event sport startDate endDate");
+      .select("-password -otp -otpExpire")
+      .populate("registeredEvents", "event sport startDate endDate")
+      .lean();
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });

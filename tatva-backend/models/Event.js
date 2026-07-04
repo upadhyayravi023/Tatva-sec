@@ -139,4 +139,9 @@ const eventSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for fast list queries
+eventSchema.index({ type: 1, isActive: 1, createdAt: -1 });
+eventSchema.index({ createdAt: -1 });
+eventSchema.index({ "registered.userid": 1 }, { sparse: true });
+
 module.exports = mongoose.model("Event", eventSchema);

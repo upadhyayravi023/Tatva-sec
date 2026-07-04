@@ -215,7 +215,8 @@ const createEvent = async (req, res) => {
 // @access  Public
 const getAllEvents = async (req, res) => {
   try {
-    const events = await Event.find();
+    // Exclude the registered array — it can be very large and is not needed in list views
+    const events = await Event.find().select("-registered").lean();
     res.json(events);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -227,7 +228,7 @@ const getAllEvents = async (req, res) => {
 // @access  Public
 const getSportsEvents = async (req, res) => {
   try {
-    const events = await Event.find({ type: "Sports Event" });
+    const events = await Event.find({ type: "Sports Event" }).select("-registered").lean();
     res.json(events);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -239,7 +240,7 @@ const getSportsEvents = async (req, res) => {
 // @access  Public
 const getCulturalEvents = async (req, res) => {
   try {
-    const events = await Event.find({ type: "Cultural Event" });
+    const events = await Event.find({ type: "Cultural Event" }).select("-registered").lean();
     res.json(events);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -252,7 +253,8 @@ const getCulturalEvents = async (req, res) => {
 const getEventById = async (req, res) => {
   try {
     const eventObj = await Event.findById(req.params.id)
-      .populate("createdBy", "name email");
+      .populate("createdBy", "name email")
+      .lean();
 
     if (!eventObj) {
       return res.status(404).json({ success: false, message: "Event not found" });
@@ -519,10 +521,10 @@ const unregisterFromEvent = async (req, res) => {
 // @access  Private/Admin
 const getEventRegistrations = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.id).populate(
-      "registered.userid",
-      "name email year rollNumber createdAt"
-    );
+    const event = await Event.findById(req.params.id)
+      .select("registered")
+      .populate("registered.userid", "name email year rollNumber createdAt")
+      .lean();
     if (!event) {
       return res.status(404).json({ success: false, message: "Event not found" });
     }

@@ -54,4 +54,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for fast lookups
+userSchema.index({ email: 1 });
+userSchema.index({ role: 1 });
+userSchema.index({ rollNumber: 1 }, { sparse: true });
+
 module.exports = mongoose.model("User", userSchema);

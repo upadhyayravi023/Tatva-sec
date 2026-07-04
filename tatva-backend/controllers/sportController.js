@@ -51,7 +51,7 @@ const createSport = async (req, res) => {
 // @access  Public
 const getAllSports = async (req, res) => {
   try {
-    const sports = await Sport.find().sort({ createdAt: -1 });
+    const sports = await Sport.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, data: sports });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
