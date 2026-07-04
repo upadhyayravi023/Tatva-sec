@@ -1,0 +1,32 @@
+# Dependency folders
+node_modules/
+jspm_packages/
+web_modules/
+
+# Local env files (security critical)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+
+# Build output
+dist/
+build/
+out/
+.next/
+
+# IDE/Editor folders
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
