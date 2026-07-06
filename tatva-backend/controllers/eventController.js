@@ -327,6 +327,9 @@ const updateEvent = async (req, res) => {
       contactMain,
       contactSub,
       schedule,
+      driveLink,
+      version,
+      uploadedBy,
     } = req.body;
 
     // Upload any newly added images
@@ -353,6 +356,8 @@ const updateEvent = async (req, res) => {
     if (req.files?.rulebookPdf?.[0]) {
       const result = await uploadToCloudinary(req.files.rulebookPdf[0].buffer, "campus-events/pdfs", "raw");
       eventObj.rulebookUrl = result.secure_url;
+    } else if (driveLink !== undefined) {
+      eventObj.rulebookUrl = driveLink;
     } else if (rulebookUrl !== undefined) {
       eventObj.rulebookUrl = rulebookUrl;
     }
@@ -395,6 +400,25 @@ const updateEvent = async (req, res) => {
     if (contactMain !== undefined) eventObj.contactMain = parseArrayField(contactMain);
     if (contactSub !== undefined) eventObj.contactSub = parseArrayField(contactSub);
     if (schedule !== undefined) eventObj.schedule = parseSchedule(schedule);
+
+    // If the rulebook was updated, queue the indexing job
+    const rulebookUpdated = !!(req.files?.rulebookPdf?.[0] || driveLink !== undefined || rulebookUrl !== undefined);
+    if (rulebookUpdated && eventObj.rulebookUrl) {
+      eventObj.status = "pending";
+      await eventObj.save();
+
+      const uploadedByVal = uploadedBy || req.user?._id?.toString() || "unknown";
+      const parsedVersion = (version && !isNaN(Number(version))) ? Number(version) : 1;
+
+      await pdfQueue.add('index-pdf', {
+        event: eventObj.type === "Cultural Event" ? eventObj.event : eventObj.sport,
+        driveLink: eventObj.rulebookUrl,
+        version: parsedVersion,
+        uploadedBy: uploadedByVal,
+      });
+
+      eventObj.status = "success";
+    }
 
     await eventObj.save();
     res.json({ success: true, message: "Event updated successfully", data: eventObj });
