@@ -66,6 +66,17 @@ const parseSchedule = (field) => {
   return undefined;
 };
 
+// Helper to validate Google Drive share links
+const isGoogleDriveUrl = (url) => {
+  if (typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url);
+    return ["drive.google.com", "docs.google.com"].includes(parsed.hostname);
+  } catch (e) {
+    return false;
+  }
+};
+
 // @desc    Create a new event (with image & PDF uploads)
 // @route   POST /api/events
 // @access  Private/Admin
@@ -98,12 +109,44 @@ const createEvent = async (req, res) => {
       contactMain,
       contactSub,
       schedule,
+      driveLink,
+      version,
+      uploadedBy,
     } = req.body;
 
     if (!type || !description || !startDate || !endDate || !location) {
       return res.status(400).json({
         success: false,
         message: "type, description, startDate, endDate, and location are required",
+      });
+    }
+
+    if (!driveLink) {
+      return res.status(400).json({
+        success: false,
+        message: "driveLink is required",
+      });
+    }
+
+    if (!isGoogleDriveUrl(driveLink)) {
+      return res.status(400).json({
+        success: false,
+        message: "driveLink must be a valid Google Drive URL",
+      });
+    }
+
+    if (version === undefined || version === null || version === "") {
+      return res.status(400).json({
+        success: false,
+        message: "version is required",
+      });
+    }
+
+    const parsedVersion = Number(version);
+    if (isNaN(parsedVersion)) {
+      return res.status(400).json({
+        success: false,
+        message: "version must be a valid number",
       });
     }
 
@@ -151,7 +194,7 @@ const createEvent = async (req, res) => {
     }
 
     // Upload rulebook PDF (single file)
-    let rulebookUrlVal = rulebookUrl || null;
+    let rulebookUrlVal = driveLink || rulebookUrl || null;
     if (req.files?.rulebookPdf?.[0]) {
       const result = await uploadToCloudinary(req.files.rulebookPdf[0].buffer, "campus-events/pdfs", "raw");
       rulebookUrlVal = result.secure_url;
@@ -208,15 +251,16 @@ const createEvent = async (req, res) => {
       createdBy: req.user._id,
     });
 
-    if (pendingRulebookUrl) {
-      await pdfQueue.add('index-pdf', {
-        rulebookId: eventObj._id.toString(),
-        eventId: eventObj._id.toString(),
-        driveLink: pendingRulebookUrl,
-        uploadedBy: req.user?._id?.toString() || 'admin',
-        version: 1,
-      });
-    }
+    const uploadedByVal = uploadedBy || req.user?._id?.toString() || "unknown";
+    await pdfQueue.add('index-pdf', {
+      event: eventObj.type === "Cultural Event" ? eventObj.event : eventObj.sport,
+      driveLink: driveLink,
+      version: parsedVersion,
+      uploadedBy: uploadedByVal,
+    });
+
+    eventObj.status = "success";
+    await eventObj.save();
 
     res.status(201).json({ success: true, message: "Event created successfully", data: eventObj });
   } catch (error) {
@@ -558,7 +602,7 @@ const getEventRegistrations = async (req, res) => {
 // @access  Private/Admin
 const uploadRulebookHandler = async (req, res) => {
   try {
-    const { rulebookId, eventId, driveLink, version } = req.body;
+    const { rulebookId, eventId, driveLink, version, uploadedBy } = req.body;
 
     const targetEventId = eventId || req.params.id;
     const eventObj = await Event.findById(targetEventId);
@@ -570,16 +614,34 @@ const uploadRulebookHandler = async (req, res) => {
       return res.status(400).json({ success: false, message: 'driveLink is required' });
     }
 
+    if (!isGoogleDriveUrl(driveLink)) {
+      return res.status(400).json({ success: false, message: 'driveLink must be a valid Google Drive URL' });
+    }
+
+    if (version === undefined || version === null || version === "") {
+      return res.status(400).json({ success: false, message: 'version is required' });
+    }
+
+    const parsedVersion = Number(version);
+    if (isNaN(parsedVersion)) {
+      return res.status(400).json({ success: false, message: 'version must be a valid number' });
+    }
+
+    const uploadedByVal = uploadedBy || req.user?._id?.toString() || "unknown";
+
     eventObj.rulebookUrl = driveLink;
+    eventObj.status = "pending";
     await eventObj.save();
 
     await pdfQueue.add('index-pdf', {
-      rulebookId: rulebookId || targetEventId,
-      eventId: targetEventId,
+      event: eventObj.type === "Cultural Event" ? eventObj.event : eventObj.sport,
       driveLink,
-      uploadedBy: req.user?._id?.toString() || 'admin',
-      version: version || 1,
+      version: parsedVersion,
+      uploadedBy: uploadedByVal,
     });
+
+    eventObj.status = "success";
+    await eventObj.save();
 
     res.status(200).json({ message: 'Rulebook uploaded. Indexing started.' });
   } catch (error) {
