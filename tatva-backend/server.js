@@ -12,6 +12,9 @@ connectDB();
 
 const app = express();
 
+// Trust proxy for rate limiting (Render environment)
+app.set("trust proxy", 1);
+
 // 1. Security HTTP Headers with custom Content Security Policy (CSP)
 app.use(
   helmet({

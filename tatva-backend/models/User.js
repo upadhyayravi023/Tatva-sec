@@ -55,7 +55,6 @@ const userSchema = new mongoose.Schema(
 );
 
 // Indexes for fast lookups
-userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ rollNumber: 1 }, { sparse: true });
 
