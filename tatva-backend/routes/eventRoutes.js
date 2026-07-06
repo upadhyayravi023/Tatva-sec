@@ -13,6 +13,7 @@ const {
   registerForEvent,
   unregisterFromEvent,
   getEventRegistrations,
+  uploadRulebookHandler,
 } = require("../controllers/eventController");
 
 const { protect, adminOnly } = require("../middleware/authMiddleware");
@@ -42,5 +43,6 @@ router.delete("/:id", protect, adminOnly, deleteEvent);
 router.delete("/:id/images/:publicId", protect, adminOnly, deleteEventImage);
 router.delete("/:id/pdfs/:publicId", protect, adminOnly, deleteEventPdf);
 router.get("/:id/registrations", protect, adminOnly, getEventRegistrations);
+router.post("/:id/rulebook", protect, adminOnly, uploadRulebookHandler);
 
 module.exports = router;

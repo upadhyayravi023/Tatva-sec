@@ -1,6 +1,7 @@
 const Event = require("../models/Event");
 const User = require("../models/User");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../middleware/uploadMiddleware");
+const { pdfQueue } = require("../queue/pdfQueue");
 
 // Helper to convert comma-separated string or array (including JSON string arrays) to clean array
 const parseArrayField = (field) => {
@@ -156,6 +157,9 @@ const createEvent = async (req, res) => {
       rulebookUrlVal = result.secure_url;
     }
 
+    // Queue PDF indexing job if a rulebook URL is available
+    const pendingRulebookUrl = rulebookUrlVal;
+
     // Upload icon image (single file)
     let clubPosterUrlVal = clubPosterUrl || null;
     if (req.files?.icon?.[0]) {
@@ -203,6 +207,16 @@ const createEvent = async (req, res) => {
       imagePosters,
       createdBy: req.user._id,
     });
+
+    if (pendingRulebookUrl) {
+      await pdfQueue.add('index-pdf', {
+        rulebookId: eventObj._id.toString(),
+        eventId: eventObj._id.toString(),
+        driveLink: pendingRulebookUrl,
+        uploadedBy: req.user?._id?.toString() || 'admin',
+        version: 1,
+      });
+    }
 
     res.status(201).json({ success: true, message: "Event created successfully", data: eventObj });
   } catch (error) {
@@ -539,6 +553,40 @@ const getEventRegistrations = async (req, res) => {
   }
 };
 
+// @desc    Upload / replace a rulebook PDF for an event and queue indexing
+// @route   POST /api/events/:id/rulebook
+// @access  Private/Admin
+const uploadRulebookHandler = async (req, res) => {
+  try {
+    const { rulebookId, eventId, driveLink, version } = req.body;
+
+    const targetEventId = eventId || req.params.id;
+    const eventObj = await Event.findById(targetEventId);
+    if (!eventObj) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    if (!driveLink) {
+      return res.status(400).json({ success: false, message: 'driveLink is required' });
+    }
+
+    eventObj.rulebookUrl = driveLink;
+    await eventObj.save();
+
+    await pdfQueue.add('index-pdf', {
+      rulebookId: rulebookId || targetEventId,
+      eventId: targetEventId,
+      driveLink,
+      uploadedBy: req.user?._id?.toString() || 'admin',
+      version: version || 1,
+    });
+
+    res.status(200).json({ message: 'Rulebook uploaded. Indexing started.' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createEvent,
   getAllEvents,
@@ -552,4 +600,5 @@ module.exports = {
   registerForEvent,
   unregisterFromEvent,
   getEventRegistrations,
+  uploadRulebookHandler,
 };
