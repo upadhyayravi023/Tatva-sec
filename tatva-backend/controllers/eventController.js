@@ -66,16 +66,6 @@ const parseSchedule = (field) => {
   return undefined;
 };
 
-// Helper to validate Google Drive share links
-const isGoogleDriveUrl = (url) => {
-  if (typeof url !== "string") return false;
-  try {
-    const parsed = new URL(url);
-    return ["drive.google.com", "docs.google.com"].includes(parsed.hostname);
-  } catch (e) {
-    return false;
-  }
-};
 
 // @desc    Create a new event (with image & PDF uploads)
 // @route   POST /api/events
@@ -128,12 +118,6 @@ const createEvent = async (req, res) => {
       });
     }
 
-    if (!isGoogleDriveUrl(driveLink)) {
-      return res.status(400).json({
-        success: false,
-        message: "driveLink must be a valid Google Drive URL",
-      });
-    }
 
     if (version === undefined || version === null || version === "") {
       return res.status(400).json({
@@ -614,9 +598,6 @@ const uploadRulebookHandler = async (req, res) => {
       return res.status(400).json({ success: false, message: 'driveLink is required' });
     }
 
-    if (!isGoogleDriveUrl(driveLink)) {
-      return res.status(400).json({ success: false, message: 'driveLink must be a valid Google Drive URL' });
-    }
 
     if (version === undefined || version === null || version === "") {
       return res.status(400).json({ success: false, message: 'version is required' });
