@@ -111,28 +111,6 @@ const createEvent = async (req, res) => {
       });
     }
 
-    if (!driveLink) {
-      return res.status(400).json({
-        success: false,
-        message: "driveLink is required",
-      });
-    }
-
-
-    if (version === undefined || version === null || version === "") {
-      return res.status(400).json({
-        success: false,
-        message: "version is required",
-      });
-    }
-
-    const parsedVersion = Number(version);
-    if (isNaN(parsedVersion)) {
-      return res.status(400).json({
-        success: false,
-        message: "version must be a valid number",
-      });
-    }
 
     if (type === "Cultural Event") {
       if (!event || !club) {
@@ -235,16 +213,20 @@ const createEvent = async (req, res) => {
       createdBy: req.user._id,
     });
 
-    const uploadedByVal = uploadedBy || req.user?._id?.toString() || "unknown";
-    await pdfQueue.add('index-pdf', {
-      event: eventObj.type === "Cultural Event" ? eventObj.event : eventObj.sport,
-      driveLink: driveLink,
-      version: parsedVersion,
-      uploadedBy: uploadedByVal,
-    });
+    if (rulebookUrlVal) {
+      const uploadedByVal = uploadedBy || req.user?._id?.toString() || "unknown";
+      const parsedVersion = (version && !isNaN(Number(version))) ? Number(version) : 1;
 
-    eventObj.status = "success";
-    await eventObj.save();
+      await pdfQueue.add('index-pdf', {
+        event: eventObj.type === "Cultural Event" ? eventObj.event : eventObj.sport,
+        driveLink: rulebookUrlVal,
+        version: parsedVersion,
+        uploadedBy: uploadedByVal,
+      });
+
+      eventObj.status = "success";
+      await eventObj.save();
+    }
 
     res.status(201).json({ success: true, message: "Event created successfully", data: eventObj });
   } catch (error) {
