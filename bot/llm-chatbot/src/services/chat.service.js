@@ -6,6 +6,29 @@ const ChatModel = require('../models/chat.model');
 const { getMongoClient } = require('../config/mongodb');
 const logger = require('../shared/logger');
 
+// In-memory cache for fast repeat responses (TTL: 5 mins, bounded size)
+const chatCache = new Map();
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_SIZE = 200;
+
+function getCachedAnswer(question) {
+  const normalized = question.trim().toLowerCase();
+  const cached = chatCache.get(normalized);
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+    return cached.answer;
+  }
+  return null;
+}
+
+function setCachedAnswer(question, answer) {
+  const normalized = question.trim().toLowerCase();
+  if (chatCache.size >= MAX_CACHE_SIZE) {
+    const oldestKey = chatCache.keys().next().value;
+    chatCache.delete(oldestKey);
+  }
+  chatCache.set(normalized, { answer, timestamp: Date.now() });
+}
+
 class ChatService {
   /**
    * Orchestrates the full Retrieval-Augmented Generation (RAG) flow for a user question.
@@ -17,10 +40,28 @@ class ChatService {
     const startTime = Date.now();
     logger.info('Processing chat question', { question });
 
-    // 1. Classification
-    const classification = await LlmService.classifyQuestion(question);
-    const { source, event } = classification;
+    // 0. Cache Lookup
+    const cachedAnswer = getCachedAnswer(question);
+    if (cachedAnswer) {
+      logger.info('Serving answer from in-memory cache', {
+        question,
+        durationMs: Date.now() - startTime,
+        cached: true
+      });
+      return { answer: cachedAnswer };
+    }
 
+    // 1. Concurrent API Operations (Classification & Embedding Generation)
+    // Runs both API requests in parallel to shave off ~300-500ms latency.
+    const [classification, vector] = await Promise.all([
+      LlmService.classifyQuestion(question),
+      LlmService.generateEmbedding(question).catch(err => {
+        logger.error('Failed to generate embedding in parallel', { error: err.message });
+        return null;
+      })
+    ]);
+
+    const { source, event } = classification;
     let resolvedEventName = event;
 
     // Resolve canonical event name
@@ -61,9 +102,8 @@ class ChatService {
     }
 
     // 3. Vector Search Context
-    if (source === 'vector' || source === 'both') {
+    if ((source === 'vector' || source === 'both') && vector) {
       try {
-        const vector = await LlmService.generateEmbedding(question);
         let chunks = [];
 
         if (resolvedEventName) {
@@ -93,12 +133,16 @@ class ChatService {
     // 5. Generate Answer
     const answer = await LlmService.getChatResponse(systemInstruction, userPrompt);
 
+    // Cache the generated answer
+    setCachedAnswer(question, answer);
+
     logger.info('Chat response generated', {
       durationMs: Date.now() - startTime,
       source,
       event: resolvedEventName,
       mongoContextLength: mongoContext.length,
-      rulebookContextLength: rulebookContext.length
+      rulebookContextLength: rulebookContext.length,
+      cached: false
     });
 
     return { answer };
