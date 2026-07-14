@@ -1,4 +1,5 @@
 services:
+  # Existing tatva-backend Service
   - type: web
     name: tatva-backend
     env: node
@@ -35,3 +36,61 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+  # 🤖 RAG Chatbot Service (Web Service)
+  - type: web
+    name: tatva-chatbot-api
+    runtime: node
+    rootDir: bot/llm-chatbot
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: embeddings
+      - key: MONGODB_COLLECTION
+        value: pdf_embeddings
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: EMBEDDING_DIMENSIONS
+        value: 3072
+
+  # 📄 PDF Background Indexing Worker
+  - type: worker
+    name: tatva-pdf-indexer
+    runtime: node
+    rootDir: bot/indexing
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: REDIS_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: embeddings
+      - key: MONGODB_COLLECTION
+        value: pdf_embeddings
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PDF_QUEUE_NAME
+        value: pdf-indexing-queue
+      - key: WORKER_CONCURRENCY
+        value: 2
+      - key: CHUNK_SIZE
+        value: 400
+      - key: CHUNK_OVERLAP
+        value: 40
+      - key: EMBEDDING_MODEL
+        value: gemini-embedding-001
+      - key: EMBEDDING_DIMENSIONS
+        value: 3072

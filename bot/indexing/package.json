@@ -1,0 +1,24 @@
+{
+  "name": "pdf-indexing-worker",
+  "version": "1.0.0",
+  "description": "Standalone PDF indexing background worker service using BullMQ",
+  "main": "src/worker.js",
+  "scripts": {
+    "start": "node src/worker.js",
+    "dev": "node --watch src/worker.js",
+    "test:enqueue": "node scripts/test-enqueue.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.10.0",
+    "axios": "^1.7.2",
+    "bullmq": "^5.12.0",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "mongodb": "^6.7.0",
+    "pdf-parse": "^1.1.1",
+    "winston": "^3.13.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

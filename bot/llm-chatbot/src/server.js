@@ -1,0 +1,99 @@
+'use strict';
+
+// Load and validate env before anything else
+const env = require('./config/env');
+const logger = require('./shared/logger');
+
+const express = require('express');
+const path = require('path');
+const { closeMongoConnection } = require('./config/mongodb');
+
+// ─── Startup Banner ───────────────────────────────────────────────────────────
+
+logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+logger.info('  🤖 LLM Chat Service — Starting up');
+logger.info(`  Model : gemini-2.5-flash-lite`);
+logger.info(`  Env   : ${env.NODE_ENV}`);
+logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+// ─── Express Server ───────────────────────────────────────────────────────────
+
+const app = express();
+
+// Parse JSON request bodies
+app.use(express.json());
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../public')));
+
+const { handleChat } = require('./controllers/chat.controller');
+const validateChatRequest = require('./middlewares/validateChat');
+
+// Chatbot Endpoint with middleware
+app.post('/api/chat', validateChatRequest, handleChat);
+
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    service: 'llm-chat-service',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+const server = app.listen(env.PORT, () => {
+  logger.info(`LLM Chat Service listening on port ${env.PORT}`, {
+    feature: 'chat-server',
+  });
+});
+
+// ─── Graceful Shutdown ────────────────────────────────────────────────────────
+
+let isShuttingDown = false;
+
+async function gracefulShutdown(signal) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  logger.info(`Received ${signal} — shutting down chat server gracefully...`, {
+    feature: 'chat-server',
+  });
+
+  try {
+    await new Promise((resolve) => server.close(resolve));
+    logger.info('HTTP server closed', { feature: 'chat-server' });
+
+    await closeMongoConnection();
+
+    logger.info('Shutdown complete. Goodbye. 👋', { feature: 'chat-server' });
+    process.exit(0);
+  } catch (err) {
+    logger.error('Error during shutdown', {
+      feature: 'chat-server',
+      error: err.message,
+    });
+    process.exit(1);
+  }
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ─── Uncaught Exception Guard ─────────────────────────────────────────────────
+
+process.on('uncaughtException', (err) => {
+  logger.error('Uncaught exception — process will exit', {
+    feature: 'chat-server',
+    error: err.message,
+    stack: err.stack,
+  });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection — process will exit', {
+    feature: 'chat-server',
+    reason: String(reason),
+  });
+  process.exit(1);
+});
