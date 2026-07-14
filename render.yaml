@@ -62,7 +62,7 @@ services:
       - key: EMBEDDING_DIMENSIONS
         value: 3072
       - key: CHAT_MODEL
-        value: gemini-1.5-flash
+        value: gemini-2.5-flash
       - key: SELF_PING_URL
         sync: false
 
