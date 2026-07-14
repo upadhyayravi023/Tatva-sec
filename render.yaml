@@ -63,6 +63,8 @@ services:
         value: 3072
       - key: CHAT_MODEL
         value: gemini-1.5-flash
+      - key: SELF_PING_URL
+        sync: false
 
   # 📄 PDF Background Indexing Worker
   - type: web
@@ -98,3 +100,5 @@ services:
         value: gemini-embedding-001
       - key: EMBEDDING_DIMENSIONS
         value: 3072
+      - key: SELF_PING_URL
+        sync: false

@@ -58,6 +58,27 @@ const server = app.listen(env.PORT, () => {
   });
 });
 
+// ─── Self-Pinging Keep-Alive Mechanism ────────────────────────────────────────
+
+function startSelfPing(url, intervalMs = 600000) {
+  if (!url) return;
+  logger.info(`Starting self-ping service targeting ${url} every 10 minutes`, {
+    feature: 'self-ping',
+  });
+  setInterval(() => {
+    const client = url.startsWith('https') ? require('https') : require('http');
+    client.get(url, (res) => {
+      logger.debug(`Self-ping response: ${res.statusCode}`, { feature: 'self-ping' });
+    }).on('error', (err) => {
+      logger.error('Self-ping failed', { feature: 'self-ping', error: err.message });
+    });
+  }, intervalMs);
+}
+
+if (process.env.SELF_PING_URL) {
+  startSelfPing(process.env.SELF_PING_URL);
+}
+
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
 
 let isShuttingDown = false;
