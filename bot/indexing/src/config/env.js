@@ -37,5 +37,6 @@ module.exports = {
   CHUNK_SIZE: parseInt(process.env.CHUNK_SIZE || '400', 10),
   CHUNK_OVERLAP: parseInt(process.env.CHUNK_OVERLAP || '40', 10),
 
+  PORT: parseInt(process.env.PORT || '10000', 10),
   NODE_ENV: process.env.NODE_ENV || 'development',
 };

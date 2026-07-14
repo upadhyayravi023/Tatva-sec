@@ -63,7 +63,7 @@ services:
         value: 3072
 
   # 📄 PDF Background Indexing Worker
-  - type: worker
+  - type: web
     name: tatva-pdf-indexer
     runtime: node
     rootDir: bot/indexing
@@ -72,6 +72,8 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
       - key: REDIS_URL
         sync: false
       - key: MONGODB_URI

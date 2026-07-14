@@ -4,6 +4,7 @@
 const env = require('./config/env');
 const logger = require('./shared/logger');
 
+const http = require('http');
 const { createPdfIndexingWorker } = require('./workers/pdfIndexing.worker');
 const { closeRedisConnections } = require('./config/redis');
 const { closeMongoConnection } = require('./config/mongodb');
@@ -22,6 +23,29 @@ logger.info('━━━━━━━━━━━━━━━━━━━━━━�
 
 const worker = createPdfIndexingWorker();
 
+// ─── Start HTTP Health Server (For Render Web Service Tier) ────────────────────
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/' || req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      status: 'ok',
+      service: 'pdf-indexing-worker-web',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString()
+    }));
+  } else {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Not Found' }));
+  }
+});
+
+server.listen(env.PORT, () => {
+  logger.info(`HTTP health check server listening on port ${env.PORT}`, {
+    feature: 'worker-main',
+  });
+});
+
 // ─── Graceful Shutdown ────────────────────────────────────────────────────────
 
 let isShuttingDown = false;
@@ -35,6 +59,9 @@ async function gracefulShutdown(signal) {
   });
 
   try {
+    await new Promise((resolve) => server.close(resolve));
+    logger.info('HTTP health server closed', { feature: 'worker-main' });
+
     await worker.close();
     logger.info('BullMQ worker closed', { feature: 'worker-main' });
 
