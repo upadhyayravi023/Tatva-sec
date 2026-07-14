@@ -16,7 +16,7 @@ class LlmService {
    */
   static async getChatResponse(systemInstruction, prompt) {
     const response = await genai.models.generateContent({
-      model: 'gemini-2.5-flash-lite',
+      model: env.CHAT_MODEL,
       contents: prompt,
       config: {
         systemInstruction: systemInstruction,
@@ -57,7 +57,7 @@ class LlmService {
     const prompt = `Classify this user question: "${question}"`;
     try {
       const response = await genai.models.generateContent({
-        model: 'gemini-2.5-flash-lite',
+        model: env.CHAT_MODEL,
         contents: prompt,
         config: {
           systemInstruction: `You are a classification assistant for a College Fest chatbot.

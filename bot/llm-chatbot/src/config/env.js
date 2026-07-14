@@ -24,6 +24,7 @@ module.exports = {
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,
   EMBEDDING_MODEL: process.env.EMBEDDING_MODEL || 'gemini-embedding-001',
   EMBEDDING_DIMENSIONS: parseInt(process.env.EMBEDDING_DIMENSIONS || '3072', 10),
+  CHAT_MODEL: process.env.CHAT_MODEL || 'gemini-1.5-flash',
 
   // Server
   PORT: parseInt(process.env.PORT || '3001', 10),

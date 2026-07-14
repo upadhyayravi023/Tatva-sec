@@ -12,7 +12,7 @@ const { closeMongoConnection } = require('./config/mongodb');
 
 logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 logger.info('  🤖 LLM Chat Service — Starting up');
-logger.info(`  Model : gemini-2.5-flash-lite`);
+logger.info(`  Model : ${env.CHAT_MODEL}`);
 logger.info(`  Env   : ${env.NODE_ENV}`);
 logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
@@ -22,6 +22,17 @@ const app = express();
 
 // Parse JSON request bodies
 app.use(express.json());
+
+// CORS Middleware to allow external requests (e.g. from Admin Dashboard)
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, '../public')));

@@ -61,6 +61,8 @@ services:
         value: gemini-embedding-001
       - key: EMBEDDING_DIMENSIONS
         value: 3072
+      - key: CHAT_MODEL
+        value: gemini-1.5-flash
 
   # 📄 PDF Background Indexing Worker
   - type: web
